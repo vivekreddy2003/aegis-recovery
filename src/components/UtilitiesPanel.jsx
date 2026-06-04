@@ -780,11 +780,15 @@ function GhostEmailTool() {
   const [emailAddress, setEmailAddress] = useState('');
   const [copied, setCopied] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [expandedMsg, setExpandedMsg] = useState(null);
 
   const generateEmail = () => {
     const randomHex = Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
     setEmailAddress(`ghost-${randomHex}@aegis-relay.net`);
     setCopied(false);
+    setMessages([]);
+    setExpandedMsg(null);
   };
 
   useEffect(() => {
@@ -798,14 +802,30 @@ function GhostEmailTool() {
   };
 
   const checkInbox = () => {
+    if (isRefreshing) return;
     setIsRefreshing(true);
+    
+    // Simulate network delay
     setTimeout(() => {
       setIsRefreshing(false);
+      
+      // Simulate receiving a welcome email on the first check
+      if (messages.length === 0) {
+        setMessages([
+          {
+            id: 1,
+            from: 'admin@dark-relay.net',
+            subject: 'Connection Established: Relay Node Active',
+            time: new Date().toLocaleTimeString(),
+            body: 'Your ghost email address is successfully registered on the shadow network.\n\nAny emails sent to this address will be intercepted and displayed here. This inbox will self-destruct upon window closure. Do not use for sensitive 2FA recovery.'
+          }
+        ]);
+      }
     }, 1500);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingRight: '10px' }}>
       <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>Ghost Email Relay</h3>
       <p style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '20px' }}>
         Generate an anonymous, self-destructing temporary email address. Keep this window open to receive messages.
@@ -883,7 +903,8 @@ function GhostEmailTool() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            opacity: isRefreshing ? 0.6 : 1
           }}
         >
           <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> 
@@ -891,17 +912,41 @@ function GhostEmailTool() {
         </button>
       </div>
 
-      <div className="terminal-box" style={{ flex: 1, minHeight: '200px', padding: '16px', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+      <div className="terminal-box" style={{ flex: 1, minHeight: '200px', padding: '16px', overflowY: 'auto' }}>
         {isRefreshing ? (
-          <div style={{ color: '#eab308', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+          <div style={{ color: '#eab308', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '10px' }}>
             <RefreshCw size={32} className="animate-spin" />
             <span>Polling encrypted relay network...</span>
           </div>
-        ) : (
-          <div style={{ color: '#6b7280', textAlign: 'center' }}>
-            <Mail size={48} style={{ opacity: 0.5, marginBottom: '10px', margin: '0 auto' }} />
+        ) : messages.length === 0 ? (
+          <div style={{ color: '#6b7280', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <Mail size={48} style={{ opacity: 0.5, marginBottom: '10px' }} />
             <p>Inbox is currently empty.</p>
             <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Awaiting incoming transmissions for {emailAddress}</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {messages.map(msg => (
+              <div key={msg.id} style={{ border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '8px', background: 'rgba(234, 179, 8, 0.05)', overflow: 'hidden' }}>
+                <div 
+                  onClick={() => setExpandedMsg(expandedMsg === msg.id ? null : msg.id)}
+                  className="interactive"
+                  style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, color: '#eab308', fontSize: '0.9rem' }}>{msg.from}</span>
+                    <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>{msg.time}</span>
+                  </div>
+                  <div style={{ fontWeight: 600, color: '#fff', fontSize: '1rem' }}>{msg.subject}</div>
+                </div>
+                
+                {expandedMsg === msg.id && (
+                  <div style={{ padding: '16px', background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(234, 179, 8, 0.1)', color: '#d1d5db', fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                    {msg.body}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         )}
       </div>
