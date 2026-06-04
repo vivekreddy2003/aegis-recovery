@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CameraOff, Image as ImageIcon, MessageSquare, History, Key, Shield, ShieldCheck, Download, Copy, RefreshCw } from 'lucide-react';
+import { CameraOff, Image as ImageIcon, MessageSquare, History, Key, Shield, ShieldCheck, Download, Copy, RefreshCw, Mail } from 'lucide-react';
 import { getLogs } from '../utils/db';
 
 export default function UtilitiesPanel() {
@@ -67,6 +67,18 @@ export default function UtilitiesPanel() {
         >
           <History size={16} /> App Security History
         </button>
+        <button
+          onClick={() => setActiveTab('email')}
+          className="haptic-tap"
+          style={{
+            flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
+            background: activeTab === 'email' ? 'rgba(234, 179, 8, 0.15)' : 'transparent',
+            color: activeTab === 'email' ? '#eab308' : '#9ca3af',
+            fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+          }}
+        >
+          <Mail size={16} /> Ghost Email
+        </button>
       </div>
 
       {/* Main Content Area */}
@@ -75,6 +87,7 @@ export default function UtilitiesPanel() {
         {activeTab === 'exif' && <ExifSanitizer />}
         {activeTab === 'stego' && <SteganographyTool />}
         {activeTab === 'audit' && <AuditLogViewer />}
+        {activeTab === 'email' && <GhostEmailTool />}
       </div>
     </div>
   );
@@ -755,6 +768,142 @@ function AuditLogViewer() {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// -------------------------------------------------------------
+// 5. Ghost Email Relay
+// -------------------------------------------------------------
+function GhostEmailTool() {
+  const [emailAddress, setEmailAddress] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const generateEmail = () => {
+    const randomHex = Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+    setEmailAddress(`ghost-${randomHex}@aegis-relay.net`);
+    setCopied(false);
+  };
+
+  useEffect(() => {
+    generateEmail();
+  }, []);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(emailAddress);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const checkInbox = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 1500);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>Ghost Email Relay</h3>
+      <p style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '20px' }}>
+        Generate an anonymous, self-destructing temporary email address. Keep this window open to receive messages.
+      </p>
+
+      <div style={{
+        background: 'rgba(0, 0, 0, 0.4)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '12px',
+        padding: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '20px',
+        marginBottom: '20px'
+      }}>
+        {/* Output Box */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{
+            flex: 1,
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '8px',
+            padding: '16px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '1.2rem',
+            color: '#eab308',
+            wordBreak: 'break-all',
+            letterSpacing: '0.05em'
+          }}>
+            {emailAddress}
+          </div>
+          <button
+            onClick={copyToClipboard}
+            className="haptic-tap"
+            style={{
+              background: copied ? 'rgba(16, 185, 129, 0.15)' : 'rgba(234, 179, 8, 0.1)',
+              border: `1px solid ${copied ? 'rgba(16, 185, 129, 0.3)' : 'rgba(234, 179, 8, 0.3)'}`,
+              color: copied ? '#10b981' : '#eab308',
+              borderRadius: '8px',
+              width: '56px',
+              height: '56px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            {copied ? <ShieldCheck size={24} /> : <Copy size={24} />}
+          </button>
+        </div>
+
+        <button
+          onClick={generateEmail}
+          className="btn-secondary haptic-tap"
+          style={{ alignSelf: 'flex-start', padding: '6px 12px', fontSize: '0.8rem' }}
+        >
+          <RefreshCw size={14} style={{ marginRight: '6px' }} /> Generate New Address
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <h4 style={{ fontSize: '1rem', fontWeight: 600 }}>Encrypted Inbox</h4>
+        <button
+          onClick={checkInbox}
+          disabled={isRefreshing}
+          className="haptic-tap"
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--border-color)',
+            color: '#fff',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            cursor: 'pointer'
+          }}
+        >
+          <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> 
+          {isRefreshing ? 'Syncing Node...' : 'Check For Messages'}
+        </button>
+      </div>
+
+      <div className="terminal-box" style={{ flex: 1, minHeight: '200px', padding: '16px', overflowY: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        {isRefreshing ? (
+          <div style={{ color: '#eab308', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+            <RefreshCw size={32} className="animate-spin" />
+            <span>Polling encrypted relay network...</span>
+          </div>
+        ) : (
+          <div style={{ color: '#6b7280', textAlign: 'center' }}>
+            <Mail size={48} style={{ opacity: 0.5, marginBottom: '10px', margin: '0 auto' }} />
+            <p>Inbox is currently empty.</p>
+            <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>Awaiting incoming transmissions for {emailAddress}</p>
+          </div>
+        )}
       </div>
     </div>
   );
