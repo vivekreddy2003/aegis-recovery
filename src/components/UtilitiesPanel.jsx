@@ -778,17 +778,84 @@ function AuditLogViewer() {
 // -------------------------------------------------------------
 function GhostEmailTool() {
   const [emailAddress, setEmailAddress] = useState('');
+  const [password, setPassword] = useState('');
+  const [token, setToken] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [messages, setMessages] = useState([]);
   const [expandedMsg, setExpandedMsg] = useState(null);
+  const [messageBodies, setMessageBodies] = useState({});
+  const [error, setError] = useState(null);
 
-  const generateEmail = () => {
-    const randomHex = Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-    setEmailAddress(`ghost-${randomHex}@aegis-relay.net`);
-    setCopied(false);
+  const generateEmail = async () => {
+    setIsGenerating(true);
+    setError(null);
     setMessages([]);
     setExpandedMsg(null);
+    setMessageBodies({});
+    
+    try {
+      // 1. Fetch available domains
+      const domainRes = await fetch('https://api.mail.tm/domains');
+      if (!domainRes.ok) throw new Error('Failed to fetch mail domains');
+      const domainsData = await domainRes.json();
+      const activeDomains = domainsData['hydra:member'] || [];
+      if (activeDomains.length === 0) throw new Error('No active mail domains available');
+      
+      // Select the first active domain
+      const domain = activeDomains[0].domain;
+      
+      // 2. Generate a random username and password
+      const randomId = Math.floor(100000 + Math.random() * 900000);
+      const generatedEmail = `ghost-${randomId}@${domain}`;
+      const generatedPassword = `pass-${Math.floor(100000 + Math.random() * 900000)}`;
+      
+      // 3. Create the account
+      const accountRes = await fetch('https://api.mail.tm/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: generatedEmail,
+          password: generatedPassword
+        })
+      });
+      if (!accountRes.ok) throw new Error('Failed to register email account on relay');
+      
+      // 4. Retrieve the token
+      const tokenRes = await fetch('https://api.mail.tm/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address: generatedEmail,
+          password: generatedPassword
+        })
+      });
+      if (!tokenRes.ok) throw new Error('Failed to authenticate token with relay');
+      const tokenData = await tokenRes.json();
+      
+      setEmailAddress(generatedEmail);
+      setPassword(generatedPassword);
+      setToken(tokenData.token);
+      setCopied(false);
+      
+      // Add a friendly welcome message in state locally
+      setMessages([
+        {
+          id: 'welcome',
+          from: { address: 'admin@aegis-relay.net', name: 'Aegis Admin' },
+          subject: 'Connection Established: Relay Node Active',
+          createdAt: new Date().toISOString(),
+          intro: 'Your ghost email address is successfully registered on the shadow network.',
+          text: 'Your ghost email address is successfully registered on the shadow network.\n\nAny emails sent to this address will be intercepted and displayed here. This inbox will self-destruct upon window closure. Do not use for sensitive 2FA recovery.'
+        }
+      ]);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to generate ghost email address.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   useEffect(() => {
@@ -796,36 +863,83 @@ function GhostEmailTool() {
   }, []);
 
   const copyToClipboard = () => {
+    if (!emailAddress) return;
     navigator.clipboard.writeText(emailAddress);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const checkInbox = () => {
-    if (isRefreshing) return;
+  const checkInbox = async () => {
+    if (!token) return;
     setIsRefreshing(true);
+    setError(null);
     
-    // Simulate network delay
-    setTimeout(() => {
-      setIsRefreshing(false);
+    try {
+      const messagesRes = await fetch('https://api.mail.tm/messages', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!messagesRes.ok) throw new Error('Failed to sync inbox messages');
+      const messagesData = await messagesRes.json();
+      const fetchedMessages = messagesData['hydra:member'] || [];
       
-      // Simulate receiving a welcome email on the first check
-      if (messages.length === 0) {
-        setMessages([
-          {
-            id: 1,
-            from: 'admin@dark-relay.net',
-            subject: 'Connection Established: Relay Node Active',
-            time: new Date().toLocaleTimeString(),
-            body: 'Your ghost email address is successfully registered on the shadow network.\n\nAny emails sent to this address will be intercepted and displayed here. This inbox will self-destruct upon window closure. Do not use for sensitive 2FA recovery.'
-          }
-        ]);
+      if (fetchedMessages.length > 0) {
+        setMessages(fetchedMessages);
+      } else {
+        // Keep welcome message if inbox is empty
+        setMessages(prev => prev.filter(m => m.id === 'welcome'));
       }
-    }, 1500);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to sync with relay.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Poll for messages periodically
+  useEffect(() => {
+    if (!token) return;
+    const interval = setInterval(() => {
+      checkInbox();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const handleToggleMessage = async (msgId) => {
+    if (expandedMsg === msgId) {
+      setExpandedMsg(null);
+      return;
+    }
+    
+    setExpandedMsg(msgId);
+    
+    if (msgId === 'welcome') return;
+    if (messageBodies[msgId]) return; // Already loaded
+    
+    try {
+      const msgRes = await fetch(`https://api.mail.tm/messages/${msgId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!msgRes.ok) throw new Error('Failed to retrieve email content');
+      const msgData = await msgRes.json();
+      
+      if (msgData) {
+        setMessageBodies(prev => ({
+          ...prev,
+          [msgId]: msgData.text || msgData.html || 'No content.'
+        }));
+      }
+    } catch (err) {
+      console.error(err);
+      setMessageBodies(prev => ({
+        ...prev,
+        [msgId]: `Error loading content: ${err.message}`
+      }));
+    }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto', paddingRight: '10px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
       <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '8px' }}>Ghost Email Relay</h3>
       <p style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '20px' }}>
         Generate an anonymous, self-destructing temporary email address. Keep this window open to receive messages.
@@ -851,14 +965,27 @@ function GhostEmailTool() {
             padding: '16px',
             fontFamily: 'var(--font-mono)',
             fontSize: '1.2rem',
-            color: '#eab308',
+            color: isGenerating ? '#9ca3af' : error ? 'var(--neon-rose)' : '#eab308',
             wordBreak: 'break-all',
-            letterSpacing: '0.05em'
+            letterSpacing: '0.05em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px'
           }}>
-            {emailAddress}
+            {isGenerating ? (
+              <>
+                <RefreshCw size={20} className="animate-spin" style={{ color: '#eab308' }} />
+                <span style={{ fontSize: '1rem', color: '#9ca3af' }}>Creating secure relay channel...</span>
+              </>
+            ) : error ? (
+              <span style={{ fontSize: '0.95rem' }}>Error: {error}</span>
+            ) : (
+              emailAddress || 'No Address Generated'
+            )}
           </div>
           <button
             onClick={copyToClipboard}
+            disabled={!emailAddress || isGenerating}
             className="haptic-tap"
             style={{
               background: copied ? 'rgba(16, 185, 129, 0.15)' : 'rgba(234, 179, 8, 0.1)',
@@ -870,7 +997,8 @@ function GhostEmailTool() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: 'pointer',
+              cursor: emailAddress && !isGenerating ? 'pointer' : 'not-allowed',
+              opacity: emailAddress && !isGenerating ? 1 : 0.5,
               transition: 'all 0.2s'
             }}
           >
@@ -880,10 +1008,12 @@ function GhostEmailTool() {
 
         <button
           onClick={generateEmail}
+          disabled={isGenerating}
           className="btn-secondary haptic-tap"
-          style={{ alignSelf: 'flex-start', padding: '6px 12px', fontSize: '0.8rem' }}
+          style={{ alignSelf: 'flex-start', padding: '6px 12px', fontSize: '0.8rem', opacity: isGenerating ? 0.6 : 1 }}
         >
-          <RefreshCw size={14} style={{ marginRight: '6px' }} /> Generate New Address
+          <RefreshCw size={14} className={isGenerating ? 'animate-spin' : ''} style={{ marginRight: '6px' }} /> 
+          {isGenerating ? 'Generating...' : 'Generate New Address'}
         </button>
       </div>
 
@@ -891,7 +1021,7 @@ function GhostEmailTool() {
         <h4 style={{ fontSize: '1rem', fontWeight: 600 }}>Encrypted Inbox</h4>
         <button
           onClick={checkInbox}
-          disabled={isRefreshing}
+          disabled={isRefreshing || !token}
           className="haptic-tap"
           style={{
             background: 'transparent',
@@ -903,8 +1033,8 @@ function GhostEmailTool() {
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            cursor: 'pointer',
-            opacity: isRefreshing ? 0.6 : 1
+            cursor: token ? 'pointer' : 'not-allowed',
+            opacity: isRefreshing || !token ? 0.6 : 1
           }}
         >
           <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} /> 
@@ -912,8 +1042,8 @@ function GhostEmailTool() {
         </button>
       </div>
 
-      <div className="terminal-box" style={{ flex: 1, minHeight: '200px', padding: '16px', overflowY: 'auto' }}>
-        {isRefreshing ? (
+      <div className="terminal-box" style={{ flex: 1, minHeight: '150px', padding: '16px', overflowY: 'auto' }}>
+        {isRefreshing && messages.length === 0 ? (
           <div style={{ color: '#eab308', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '10px' }}>
             <RefreshCw size={32} className="animate-spin" />
             <span>Polling encrypted relay network...</span>
@@ -926,27 +1056,58 @@ function GhostEmailTool() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {messages.map(msg => (
-              <div key={msg.id} style={{ border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '8px', background: 'rgba(234, 179, 8, 0.05)', overflow: 'hidden' }}>
-                <div 
-                  onClick={() => setExpandedMsg(expandedMsg === msg.id ? null : msg.id)}
-                  className="interactive"
-                  style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer' }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, color: '#eab308', fontSize: '0.9rem' }}>{msg.from}</span>
-                    <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>{msg.time}</span>
+            {messages.map(msg => {
+              const isExpanded = expandedMsg === msg.id;
+              const hasBody = msg.id === 'welcome' ? !!msg.text : !!messageBodies[msg.id];
+              const bodyContent = msg.id === 'welcome' ? msg.text : messageBodies[msg.id];
+              const formattedTime = new Date(msg.createdAt).toLocaleTimeString();
+              const formattedDate = new Date(msg.createdAt).toLocaleDateString();
+
+              return (
+                <div key={msg.id} style={{ border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '8px', background: 'rgba(234, 179, 8, 0.05)', overflow: 'hidden' }}>
+                  <div 
+                    onClick={() => handleToggleMessage(msg.id)}
+                    className="interactive"
+                    style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: '#eab308', fontSize: '0.9rem' }}>
+                        {msg.from.name ? `${msg.from.name} <${msg.from.address}>` : msg.from.address}
+                      </span>
+                      <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>{formattedDate} {formattedTime}</span>
+                    </div>
+                    <div style={{ fontWeight: 600, color: '#fff', fontSize: '1rem' }}>{msg.subject}</div>
+                    {!isExpanded && msg.intro && (
+                      <div style={{ color: '#9ca3af', fontSize: '0.8rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {msg.intro}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontWeight: 600, color: '#fff', fontSize: '1rem' }}>{msg.subject}</div>
+                  
+                  {isExpanded && (
+                    <div style={{ 
+                      padding: '16px', 
+                      background: 'rgba(0,0,0,0.4)', 
+                      borderTop: '1px solid rgba(234, 179, 8, 0.1)', 
+                      color: '#d1d5db', 
+                      fontSize: '0.85rem', 
+                      whiteSpace: 'pre-wrap', 
+                      lineHeight: 1.5,
+                      borderLeft: '3px solid #eab308'
+                    }}>
+                      {!hasBody ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#eab308' }}>
+                          <RefreshCw size={14} className="animate-spin" />
+                          <span>Decrypting payload from node...</span>
+                        </div>
+                      ) : (
+                        bodyContent
+                      )}
+                    </div>
+                  )}
                 </div>
-                
-                {expandedMsg === msg.id && (
-                  <div style={{ padding: '16px', background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(234, 179, 8, 0.1)', color: '#d1d5db', fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                    {msg.body}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
