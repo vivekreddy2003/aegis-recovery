@@ -5,6 +5,7 @@ import EncryptedVault from './components/EncryptedVault';
 import DataShredder from './components/DataShredder';
 import NetworkPortal from './components/NetworkPortal';
 import PlaygroundCreator from './components/PlaygroundCreator';
+import UtilitiesPanel from './components/UtilitiesPanel';
 import SettingsPanel from './components/SettingsPanel';
 import AuthGate from './components/AuthGate';
 import PasswordGate from './components/PasswordGate';
@@ -244,6 +245,10 @@ function AppContent() {
         
         {activeTab === 'shredder' && (
           <DataShredder />
+        )}
+
+        {activeTab === 'utilities' && (
+          <UtilitiesPanel />
         )}
         
         {activeTab === 'portal' && (

@@ -1,11 +1,12 @@
 import React from 'react';
-import { Search, ShieldAlert, Trash2, Box, Share2 } from 'lucide-react';
+import { Search, ShieldAlert, Trash2, Box, Share2, Wrench } from 'lucide-react';
 
 export default function BottomNav({ activeTab, setActiveTab }) {
   const tabs = [
     { id: 'scanner', label: 'Scanner', icon: Search },
     { id: 'vault', label: 'Vault', icon: ShieldAlert },
     { id: 'shredder', label: 'Shredder', icon: Trash2 },
+    { id: 'utilities', label: 'Utilities', icon: Wrench },
     { id: 'portal', label: 'Sharing', icon: Share2 },
     { id: 'playground', label: 'Playground', icon: Box }
   ];
