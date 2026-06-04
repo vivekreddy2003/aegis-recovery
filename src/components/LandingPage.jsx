@@ -46,6 +46,7 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
   const [dbPassword, setDbPassword] = useState('');
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('register'); // 'login' | 'register'
+  const [rememberDevice, setRememberDevice] = useState(false);
   
   // Verification States
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -110,16 +111,23 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
   };
 
   const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
     if (!email || !password) {
       setLoginError('Please enter both email and password.');
       return;
     }
-    if (email.trim().toLowerCase() === dbEmail.trim().toLowerCase() && password === dbPassword) {
+    if (email === dbEmail && password === dbPassword) {
+      // Success
+      setLoginError('');
+      
+      // Save remember setting
+      await setConfig('remember_device', rememberDevice ? 'true' : 'false');
+      
       if (onAuthorizedLaunch) {
         onAuthorizedLaunch(password);
-      } else {
+      } else if (onLaunch) {
         onLaunch();
       }
     } else {
@@ -568,6 +576,19 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                <input 
+                  type="checkbox" 
+                  id="rememberDevice" 
+                  checked={rememberDevice}
+                  onChange={(e) => setRememberDevice(e.target.checked)}
+                  style={{ accentColor: 'var(--neon-cyan)', cursor: 'pointer', width: '16px', height: '16px' }}
+                />
+                <label htmlFor="rememberDevice" style={{ fontSize: '0.8rem', color: '#9ca3af', cursor: 'pointer' }}>
+                  Remember this device
+                </label>
               </div>
 
               <button

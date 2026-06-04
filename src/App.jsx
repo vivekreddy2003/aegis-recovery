@@ -51,9 +51,17 @@ function AppContent() {
         } else if (method === 'password') {
           const dbEmail = await getConfig('profile_email');
           const dbPassword = await getConfig('profile_password');
+          const rememberDevice = await getConfig('remember_device');
+          
           if (dbEmail && dbPassword) {
             setPinLockEnabled(true);
-            setIsAuthorized(false); // Gate startup access
+            if (rememberDevice === 'true') {
+              setMasterPin(dbPassword);
+              setIsAuthorized(true);
+              setIsViewingLanding(false);
+            } else {
+              setIsAuthorized(false); // Gate startup access
+            }
           } else {
             setPinLockEnabled(false);
             setMasterPin(SYSTEM_KEY);
