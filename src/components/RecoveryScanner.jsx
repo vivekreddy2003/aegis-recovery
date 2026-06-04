@@ -3,6 +3,7 @@ import { Search, Upload, ShieldCheck, ShieldAlert, FileText, ImageIcon, File, Co
 import { carveData } from '../utils/carver';
 import { encryptFile } from '../utils/crypto';
 import { saveToVault, addLog } from '../utils/db';
+import { playSound } from '../utils/audio';
 import confetti from 'canvas-confetti';
 
 export default function RecoveryScanner({ masterPin }) {
@@ -13,6 +14,7 @@ export default function RecoveryScanner({ masterPin }) {
   const [activeBlock, setActiveBlock] = useState(-1);
   const [carvedBlocks, setCarvedBlocks] = useState([]);
   const [hexPreview, setHexPreview] = useState('AWAITING DATA STREAM...');
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'images' | 'documents' | 'system'
   const [logs, setLogs] = useState([]);
   const [recoveredFiles, setRecoveredFiles] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState({});
@@ -110,6 +112,7 @@ export default function RecoveryScanner({ masterPin }) {
     setRecoveredFiles(mockFiles);
     setLogs(prev => [...prev, '[SYSTEM] Quick scan successfully finalized. 2 items identified.']);
     setIsScanning(false);
+    playSound('success');
     confetti({ particleCount: 80, spread: 60 });
     addLog('info', 'Quick Scan Completed', 'Recovered 2 cached system logs.');
   };
@@ -129,6 +132,7 @@ export default function RecoveryScanner({ masterPin }) {
       const reader = new FileReader();
       
       reader.onload = async (e) => {
+        const audioNodes = playSound('scan');
         const arrayBuffer = e.target.result;
         
         // Execute real binary carving from utilities!
@@ -165,9 +169,15 @@ export default function RecoveryScanner({ masterPin }) {
           }
         });
         
+        if (audioNodes) {
+          audioNodes.osc.stop();
+          audioNodes.lfo.stop();
+        }
+        
         setRecoveredFiles(files);
         setLogs(prev => [...prev, `[FORENSIC] Signature scan concluded. Identified ${files.length} valid file headers.`]);
         setIsScanning(false);
+        playSound('success');
         if (files.length > 0) {
           confetti({ particleCount: 100, spread: 80, origin: { y: 0.8 } });
         }
@@ -177,6 +187,7 @@ export default function RecoveryScanner({ masterPin }) {
       reader.readAsArrayBuffer(file);
     } catch (err) {
       console.error(err);
+      playSound('error');
       setLogs(prev => [...prev, `[ERROR] Secure scanning failed: ${err.message}`]);
       setIsScanning(false);
     }
@@ -244,11 +255,13 @@ export default function RecoveryScanner({ masterPin }) {
       }
       
       confetti({ particleCount: 80, spread: 60, colors: shouldEncrypt ? ['#6366f1', '#a855f7'] : ['#10b981', '#06b6d4'] });
+      playSound('success');
       alert(shouldEncrypt ? 'Recovered files secured and encrypted into your Aegis Vault!' : 'Successfully restored selected files!');
       setSelectedFiles({});
       addLog('info', 'Restoration Finalized', `Successfully restored ${selectedIds.length} files.`);
     } catch (err) {
       console.error(err);
+      playSound('error');
       alert('Secure restoration failed: ' + err.message);
     } finally {
       setRestoring(false);
@@ -267,6 +280,13 @@ export default function RecoveryScanner({ masterPin }) {
     }
     return null;
   };
+
+  const filteredFiles = recoveredFiles.filter(f => {
+    if (filterType === 'images') return f.type.startsWith('image/');
+    if (filterType === 'documents') return f.type === 'application/pdf' || f.type.startsWith('text/');
+    if (filterType === 'system') return f.type === 'application/octet-stream' || !f.type;
+    return true;
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -507,9 +527,32 @@ export default function RecoveryScanner({ masterPin }) {
             </button>
           </div>
 
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '8px' }} className="hide-scrollbar">
+            {['all', 'images', 'documents', 'system'].map(type => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className="haptic-tap"
+                style={{
+                  padding: '4px 12px',
+                  borderRadius: '12px',
+                  border: `1px solid ${filterType === type ? 'var(--neon-cyan)' : 'rgba(255,255,255,0.1)'}`,
+                  background: filterType === type ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+                  color: filterType === type ? 'var(--neon-cyan)' : '#9ca3af',
+                  fontSize: '0.75rem',
+                  textTransform: 'capitalize',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
           {/* Item Listing Container */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {recoveredFiles.map((fileObj) => {
+            {filteredFiles.map((fileObj) => {
               const isSelected = !!selectedFiles[fileObj.id];
               const isImg = fileObj.type.startsWith('image/');
               const imgUrl = isImg ? getImagePreview(fileObj) : null;

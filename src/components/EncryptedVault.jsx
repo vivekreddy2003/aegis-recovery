@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Lock, Unlock, Eye, Trash2, ShieldCheck, Download, AlertCircle } from 'lucide-react';
+import { ShieldAlert, Lock, Unlock, Eye, Trash2, ShieldCheck, Download, AlertCircle, Cloud, Search, CloudLightning } from 'lucide-react';
 import { decryptFile } from '../utils/crypto';
 import { getVaultFiles, deleteFromVault, addLog } from '../utils/db';
+import { playSound } from '../utils/audio';
 
 export default function EncryptedVault({ masterPin }) {
   const [vaultFiles, setVaultFiles] = useState([]);
@@ -9,6 +10,9 @@ export default function EncryptedVault({ masterPin }) {
   const [isDecrypting, setIsDecrypting] = useState(false);
   const [decryptedPreview, setDecryptedPreview] = useState(null);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [syncingId, setSyncingId] = useState(null);
+  const [syncedIds, setSyncedIds] = useState(new Set()); // Mock cloud state
 
   // Load vault files on component mount
   useEffect(() => {
@@ -58,10 +62,12 @@ export default function EncryptedVault({ masterPin }) {
       });
       
       addLog('info', 'File Decrypted from Vault', `Filename: ${fileObj.originalName}`);
+      playSound('success');
     } catch (err) {
       console.error(err);
       setError('Decryption failed: incorrect PIN configuration or tampered sector bits.');
       addLog('warning', 'Vault Decryption Failure', `Attempted decryption of ${fileObj.originalName} failed.`);
+      playSound('error');
     } finally {
       setIsDecrypting(false);
     }
@@ -94,6 +100,28 @@ export default function EncryptedVault({ masterPin }) {
     }
   };
 
+  const handleCloudSync = async (fileObj) => {
+    setSyncingId(fileObj.id);
+    const audioNodes = playSound('scan');
+    
+    // Simulate secure cloud upload delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    if (audioNodes) {
+      audioNodes.osc.stop();
+      audioNodes.lfo.stop();
+    }
+    
+    setSyncedIds(prev => new Set(prev).add(fileObj.id));
+    setSyncingId(null);
+    playSound('success');
+    addLog('info', 'Zero-Knowledge Cloud Sync', `Encrypted blob ${fileObj.originalName} synced to remote Aegis cluster.`);
+  };
+
+  const filteredVaultFiles = vaultFiles.filter(f => 
+    f.originalName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
@@ -114,7 +142,20 @@ export default function EncryptedVault({ masterPin }) {
           </div>
         </div>
 
-        {vaultFiles.length === 0 ? (
+        {/* Search Bar */}
+        <div style={{ position: 'relative', marginBottom: '20px' }}>
+          <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
+          <input 
+            type="text" 
+            placeholder="Search encrypted vault..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="glass-input"
+            style={{ paddingLeft: '40px', fontSize: '0.85rem' }}
+          />
+        </div>
+
+        {filteredVaultFiles.length === 0 ? (
           <div style={{
             textAlign: 'center',
             padding: '30px 20px',
@@ -130,8 +171,10 @@ export default function EncryptedVault({ masterPin }) {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {vaultFiles.map((fileObj) => {
+            {filteredVaultFiles.map((fileObj) => {
               const isImg = fileObj.type.startsWith('image/');
+              const isSynced = syncedIds.has(fileObj.id);
+              const isSyncing = syncingId === fileObj.id;
               
               return (
                 <div
@@ -176,6 +219,34 @@ export default function EncryptedVault({ masterPin }) {
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                    <button
+                      onClick={() => handleCloudSync(fileObj)}
+                      disabled={isSyncing || isSynced}
+                      className="haptic-tap"
+                      style={{
+                        background: isSynced ? 'rgba(16, 185, 129, 0.1)' : 'rgba(139, 92, 246, 0.08)',
+                        border: `1px solid ${isSynced ? 'rgba(16, 185, 129, 0.3)' : 'rgba(139, 92, 246, 0.2)'}`,
+                        borderRadius: '10px',
+                        width: '34px',
+                        height: '34px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: isSynced ? '#10b981' : '#8b5cf6',
+                        cursor: (isSyncing || isSynced) ? 'default' : 'pointer',
+                        opacity: isSyncing ? 0.5 : 1
+                      }}
+                      title={isSynced ? "Synced to Cloud" : "Sync to Secure Cloud"}
+                    >
+                      {isSyncing ? (
+                        <div style={{ width: '14px', height: '14px', border: '2px solid #8b5cf6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                      ) : isSynced ? (
+                        <CloudLightning size={14} />
+                      ) : (
+                        <Cloud size={14} />
+                      )}
+                    </button>
+
                     <button
                       onClick={() => handleDecrypt(fileObj)}
                       className="haptic-tap"
