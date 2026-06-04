@@ -132,3 +132,13 @@ export async function getLogs() {
     request.onerror = () => reject(request.error);
   });
 }
+
+// Full Reset
+export function clearDatabase() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => resolve(true);
+  });
+}

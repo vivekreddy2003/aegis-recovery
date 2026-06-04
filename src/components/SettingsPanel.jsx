@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, ShieldAlert, ShieldCheck, Lock, Unlock, Eye, Trash2, Key, RefreshCw, Database, FileText, AlertTriangle, EyeOff, User, Phone, Mail } from 'lucide-react';
 import { hashPIN, arrayBufferToBase64 } from '../utils/crypto';
-import { getConfig, setConfig, getVaultFiles, getLogs, addLog, initDB } from '../utils/db';
+import { getConfig, setConfig, getVaultFiles, getLogs, addLog, initDB, clearDatabase } from '../utils/db';
 
 export default function SettingsPanel({ onSecurityChange, currentPinState, onBackToScan }) {
   const [pinLockEnabled, setPinLockEnabled] = useState(false);
@@ -294,6 +294,22 @@ export default function SettingsPanel({ onSecurityChange, currentPinState, onBac
         loadSettingsAndStats();
       } catch (err) {
         console.error(err);
+      }
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmDelete = confirm('Are you sure you want to delete your account? This will permanently wipe all your settings, profiles, and encrypted vault files. This action cannot be undone.');
+    if (confirmDelete) {
+      const finalInput = prompt('Type "DELETE" to confirm account deletion:');
+      if (finalInput === 'DELETE') {
+        try {
+          await clearDatabase();
+          alert('Account deleted successfully.');
+          window.location.reload();
+        } catch (err) {
+          alert('Account deletion failed: ' + err.message);
+        }
       }
     }
   };
@@ -822,6 +838,21 @@ export default function SettingsPanel({ onSecurityChange, currentPinState, onBac
                 }}
               >
                 Clear Terminal Event Logs
+              </button>
+              
+              <button
+                onClick={handleDeleteAccount}
+                className="btn-secondary"
+                style={{
+                  fontSize: '0.8rem',
+                  padding: '10px',
+                  borderRadius: '10px',
+                  justifyContent: 'center',
+                  borderColor: 'rgba(244, 63, 94, 0.4)',
+                  color: '#f43f5e'
+                }}
+              >
+                Delete Account
               </button>
               
               <button
