@@ -25,7 +25,7 @@ import {
 import { setConfig, addLog, getConfig } from '../utils/db';
 import HelpModal from './HelpModal';
 
-export default function LandingPage({ onLaunch, activeAuthMethod, onSecurityChange }) {
+export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMethod, onSecurityChange }) {
   const [activeTab, setActiveTab] = useState('sharing'); // 'sharing' | 'shields' | 'scanner' | 'vault'
   const [telemetryLogs, setTelemetryLogs] = useState([
     'SYSTEM: Initializing Aegis Recovery Sub-routine...',
@@ -41,16 +41,31 @@ export default function LandingPage({ onLaunch, activeAuthMethod, onSecurityChan
   const [isRegistered, setIsRegistered] = useState(true); // Default true until checked
   const [isRegistering, setIsRegistering] = useState(false);
   const [regError, setRegError] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [dbEmail, setDbEmail] = useState('');
+  const [dbPassword, setDbPassword] = useState('');
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState('register'); // 'login' | 'register'
+  
+  // OTP Verification States
+  const [regStep, setRegStep] = useState(1); // 1: details, 2: otp
+  const [otpCode, setOtpCode] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   // Check if already registered
   useEffect(() => {
     async function checkRegistration() {
       try {
-        const dbEmail = await getConfig('profile_email');
-        const dbPassword = await getConfig('profile_password');
-        if (!dbEmail || !dbPassword) {
+        const storedEmail = await getConfig('profile_email');
+        const storedPassword = await getConfig('profile_password');
+        if (!storedEmail || !storedPassword) {
           setIsRegistered(false); // They need to register
+          setAuthMode('register');
+        } else {
+          setDbEmail(storedEmail);
+          setDbPassword(storedPassword);
+          setAuthMode('login');
         }
       } catch (err) {
         console.error(err);
@@ -59,11 +74,53 @@ export default function LandingPage({ onLaunch, activeAuthMethod, onSecurityChan
     checkRegistration();
   }, []);
 
-  const handleRegister = async (e) => {
+  const handleRegisterPhase1 = async (e) => {
     e.preventDefault();
     setRegError('');
     if (!email || !password) {
       setRegError('Please provide both email and password.');
+      return;
+    }
+    
+    setIsRegistering(true);
+    
+    // 1. Generate 6-digit OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+    
+    // 2. Send Email (Replace placeholders with your real API keys)
+    console.log(`[DEV MODE] Generated OTP for ${email}: ${code}`);
+    try {
+      /*
+      await fetch('https://api.emailjs.com/api/v1.0/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service_id: 'YOUR_SERVICE_ID',
+          template_id: 'YOUR_TEMPLATE_ID',
+          user_id: 'YOUR_PUBLIC_KEY',
+          template_params: { to_email: email, otp_code: code }
+        })
+      });
+      */
+      
+      // Simulate network delay
+      await new Promise(r => setTimeout(r, 1000));
+      
+      setRegStep(2); // Move to OTP input
+    } catch (err) {
+      setRegError('Failed to send OTP email. Check API configuration.');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setRegError('');
+    
+    if (otpCode !== generatedOtp) {
+      setRegError('Invalid OTP code. Please try again.');
       return;
     }
     
@@ -73,15 +130,47 @@ export default function LandingPage({ onLaunch, activeAuthMethod, onSecurityChan
       await setConfig('profile_password', password);
       await setConfig('auth_method', 'password');
       await setConfig('pin_lock_enabled', false);
-      await addLog('info', 'Secure Identity Created', 'Operator registered email and password credentials.');
+      await addLog('info', 'Secure Identity Created', 'Operator registered via OTP verification.');
+      
+      setDbEmail(email);
+      setDbPassword(password);
       setIsRegistered(true);
+      
       if (onSecurityChange) {
         onSecurityChange(true, password, 'password');
       }
+      
+      // Reset form and show success
+      setEmail('');
+      setPassword('');
+      setOtpCode('');
+      setRegStep(1);
+      setShowSuccessPopup(true);
+      
+      // Switch to login tab automatically
+      setAuthMode('login');
     } catch (err) {
       setRegError('Failed to save secure credentials.');
     } finally {
       setIsRegistering(false);
+    }
+  };
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    setLoginError('');
+    if (!email || !password) {
+      setLoginError('Please enter both email and password.');
+      return;
+    }
+    if (email.trim().toLowerCase() === dbEmail.trim().toLowerCase() && password === dbPassword) {
+      if (onAuthorizedLaunch) {
+        onAuthorizedLaunch(password);
+      } else {
+        onLaunch();
+      }
+    } else {
+      setLoginError('Authentication failed. Invalid Email or Password.');
     }
   };
   
@@ -358,100 +447,235 @@ export default function LandingPage({ onLaunch, activeAuthMethod, onSecurityChan
           An ultra-secure, premium peer-to-peer sharing hub and recovery terminal. Built with military-grade dynamic cryptographic locks and frictionless local storage carving.
         </p>
 
-        {/* Registration or Launch Section */}
-        {!isRegistered ? (
-          <form 
-            onSubmit={handleRegister}
-            style={{
-              width: '100%',
-              maxWidth: '380px',
-              background: 'rgba(8, 7, 16, 0.4)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '20px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              marginTop: '16px',
-              zIndex: 10,
-              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
-            }}
-          >
-            <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Create Account</h3>
-              <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Set up your local login credentials to protect the vault.</p>
-            </div>
-
-            {regError && (
-              <div style={{ color: '#f43f5e', fontSize: '0.8rem', textAlign: 'center', background: 'rgba(244, 63, 94, 0.1)', padding: '8px', borderRadius: '8px' }}>
-                {regError}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Email Address</label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Mail size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="glass-input"
-                  style={{ paddingLeft: '38px', fontSize: '0.85rem' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Vault Password</label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <Lock size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••••••"
-                  className="glass-input"
-                  style={{ paddingLeft: '38px', paddingRight: '40px', fontSize: '0.85rem' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', display: 'flex' }}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isRegistering}
-              className="btn-cyber-primary haptic-tap"
-              style={{ width: '100%', marginTop: '8px', display: 'flex', justifyContent: 'center' }}
-            >
-              <span>{isRegistering ? 'Configuring...' : 'Configure Secure Login'}</span>
-              {!isRegistering && <CheckCircle size={18} />}
-            </button>
-          </form>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--neon-emerald)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>
-              <CheckCircle size={16} /> Secure credentials verified
-            </div>
-            {/* Launch Trigger Button */}
+        {/* Unified Authentication Box */}
+        <div style={{
+          width: '100%',
+          maxWidth: '380px',
+          background: 'rgba(8, 7, 16, 0.4)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '20px',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          marginTop: '16px',
+          zIndex: 10,
+          boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)'
+        }}>
+          
+          {/* Auth Tabs */}
+          <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', padding: '4px', marginBottom: '8px' }}>
             <button 
-              onClick={onLaunch}
-              className="btn-cyber-primary haptic-tap"
-              style={{ cursor: 'pointer' }}
+              onClick={() => { setAuthMode('login'); setLoginError(''); setRegError(''); }}
+              className="haptic-tap"
+              style={{
+                flex: 1,
+                padding: '8px',
+                borderRadius: '8px',
+                border: 'none',
+                background: authMode === 'login' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
+                color: authMode === 'login' ? '#ffffff' : '#9ca3af',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
             >
-              <span>Launch Portal Access</span>
-              <ArrowRight size={18} />
+              Login
+            </button>
+            <button 
+              onClick={() => { setAuthMode('register'); setLoginError(''); setRegError(''); }}
+              className="haptic-tap"
+              style={{
+                flex: 1,
+                padding: '8px',
+                borderRadius: '8px',
+                border: 'none',
+                background: authMode === 'register' ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
+                color: authMode === 'register' ? '#ffffff' : '#9ca3af',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Register
             </button>
           </div>
-        )}
+
+          {authMode === 'register' ? (
+            regStep === 1 ? (
+              <form onSubmit={handleRegisterPhase1} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Create Account</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Set up local login credentials.</p>
+                </div>
+
+                {regError && (
+                  <div style={{ color: '#f43f5e', fontSize: '0.8rem', textAlign: 'center', background: 'rgba(244, 63, 94, 0.1)', padding: '8px', borderRadius: '8px' }}>
+                    {regError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Email Address</label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Mail size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="glass-input"
+                      style={{ paddingLeft: '38px', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Vault Password</label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <Lock size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="glass-input"
+                      style={{ paddingLeft: '38px', paddingRight: '40px', fontSize: '0.85rem' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', display: 'flex' }}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isRegistering}
+                  className="btn-cyber-primary haptic-tap"
+                  style={{ width: '100%', marginTop: '8px', display: 'flex', justifyContent: 'center', background: 'rgba(6, 182, 212, 0.1)', borderColor: 'var(--neon-cyan)', color: 'var(--neon-cyan)' }}
+                >
+                  <span>{isRegistering ? 'Sending OTP...' : 'Send Verification Code'}</span>
+                  {!isRegistering && <Mail size={18} />}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOTP} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--neon-cyan)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', marginBottom: '8px' }}>
+                    <Mail size={16} /> Email Verification
+                  </div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Enter OTP</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>We sent a 6-digit code to {email}. (Check console for mock code)</p>
+                </div>
+
+                {regError && (
+                  <div style={{ color: '#f43f5e', fontSize: '0.8rem', textAlign: 'center', background: 'rgba(244, 63, 94, 0.1)', padding: '8px', borderRadius: '8px' }}>
+                    {regError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>6-Digit Code</label>
+                  <input
+                    type="text"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    className="glass-input"
+                    style={{ fontSize: '1.2rem', letterSpacing: '0.5em', textAlign: 'center' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isRegistering}
+                  className="btn-cyber-primary haptic-tap"
+                  style={{ width: '100%', marginTop: '8px', display: 'flex', justifyContent: 'center' }}
+                >
+                  <span>{isRegistering ? 'Verifying...' : 'Verify & Create Account'}</span>
+                  {!isRegistering && <CheckCircle size={18} />}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => setRegStep(1)}
+                  style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  Back to Registration
+                </button>
+              </form>
+            )
+          ) : (
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--neon-emerald)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', marginBottom: '8px' }}>
+                  <CheckCircle size={16} /> Device Authorized
+                </div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Login</h3>
+                <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Authenticate to decrypt your vault.</p>
+              </div>
+
+              {loginError && (
+                <div style={{ color: '#f43f5e', fontSize: '0.8rem', textAlign: 'center', background: 'rgba(244, 63, 94, 0.1)', padding: '8px', borderRadius: '8px' }}>
+                  {loginError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Email Address</label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Mail size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    className="glass-input"
+                    style={{ paddingLeft: '38px', fontSize: '0.85rem' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Vault Password</label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="glass-input"
+                    style={{ paddingLeft: '38px', paddingRight: '40px', fontSize: '0.85rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', display: 'flex' }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="btn-cyber-primary haptic-tap"
+                style={{ width: '100%', marginTop: '8px', display: 'flex', justifyContent: 'center' }}
+              >
+                <span>Decrypt & Launch</span>
+                <ArrowRight size={18} />
+              </button>
+            </form>
+          )}
+        </div>
       </div>
 
       {/* Main Feature Layout Grid */}
@@ -689,6 +913,58 @@ export default function LandingPage({ onLaunch, activeAuthMethod, onSecurityChan
           <span>Developed <span className="landing-by-badge">BY ABBI REDDY</span></span>
         </div>
       </footer>
+
+      {/* Success Popup Modal */}
+      {showSuccessPopup && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--neon-emerald)',
+            borderRadius: '24px',
+            padding: '40px',
+            maxWidth: '400px',
+            textAlign: 'center',
+            boxShadow: '0 0 50px rgba(16, 185, 129, 0.2)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px'
+          }}>
+            <div style={{
+              width: '80px', height: '80px', borderRadius: '50%',
+              background: 'rgba(16, 185, 129, 0.1)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: '2px solid rgba(16, 185, 129, 0.3)',
+              marginBottom: '10px'
+            }}>
+              <CheckCircle size={40} color="var(--neon-emerald)" />
+            </div>
+            
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>Account Created!</h2>
+            <p style={{ color: '#9ca3af', fontSize: '0.9rem', lineHeight: '1.5', margin: 0 }}>
+              Your secure identity has been verified and your cryptographic keys have been generated.
+            </p>
+            
+            <button
+              onClick={() => setShowSuccessPopup(false)}
+              className="btn-cyber-primary haptic-tap"
+              style={{ marginTop: '16px', background: 'rgba(16, 185, 129, 0.1)', borderColor: 'var(--neon-emerald)', color: 'var(--neon-emerald)', width: '100%', justifyContent: 'center' }}
+            >
+              Please Login to Continue
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <HelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />

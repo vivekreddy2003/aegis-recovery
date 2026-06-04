@@ -103,11 +103,18 @@ function AppContent() {
     );
   }
 
+  const handleAuthorizedLaunch = (pwd) => {
+    setMasterPin(pwd);
+    setIsAuthorized(true);
+    setIsViewingLanding(false);
+  };
+
   // Render landing website if active
   if (isViewingLanding) {
     return (
       <LandingPage 
         onLaunch={() => setIsViewingLanding(false)} 
+        onAuthorizedLaunch={handleAuthorizedLaunch}
         activeAuthMethod={authMethod} 
         onSecurityChange={handleSecurityChange}
       />
