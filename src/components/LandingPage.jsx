@@ -110,7 +110,6 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
     }
   };
 
-  const handleLogin = (e) => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError('');
