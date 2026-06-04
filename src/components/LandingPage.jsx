@@ -47,10 +47,7 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState('register'); // 'login' | 'register'
   
-  // OTP Verification States
-  const [regStep, setRegStep] = useState(1); // 1: details, 2: otp
-  const [otpCode, setOtpCode] = useState('');
-  const [generatedOtp, setGeneratedOtp] = useState('');
+  // Verification States
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   // Check if already registered
@@ -74,53 +71,11 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
     checkRegistration();
   }, []);
 
-  const handleRegisterPhase1 = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setRegError('');
     if (!email || !password) {
       setRegError('Please provide both email and password.');
-      return;
-    }
-    
-    setIsRegistering(true);
-    
-    // 1. Generate 6-digit OTP
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
-    
-    // 2. Send Email (Replace placeholders with your real API keys)
-    console.log(`[DEV MODE] Generated OTP for ${email}: ${code}`);
-    try {
-      /*
-      await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service_id: 'YOUR_SERVICE_ID',
-          template_id: 'YOUR_TEMPLATE_ID',
-          user_id: 'YOUR_PUBLIC_KEY',
-          template_params: { to_email: email, otp_code: code }
-        })
-      });
-      */
-      
-      // Simulate network delay
-      await new Promise(r => setTimeout(r, 1000));
-      
-      setRegStep(2); // Move to OTP input
-    } catch (err) {
-      setRegError('Failed to send OTP email. Check API configuration.');
-    } finally {
-      setIsRegistering(false);
-    }
-  };
-
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault();
-    setRegError('');
-    
-    if (otpCode !== generatedOtp) {
-      setRegError('Invalid OTP code. Please try again.');
       return;
     }
     
@@ -130,7 +85,7 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
       await setConfig('profile_password', password);
       await setConfig('auth_method', 'password');
       await setConfig('pin_lock_enabled', false);
-      await addLog('info', 'Secure Identity Created', 'Operator registered via OTP verification.');
+      await addLog('info', 'Secure Identity Created', 'Operator registered email and password credentials.');
       
       setDbEmail(email);
       setDbPassword(password);
@@ -143,8 +98,6 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
       // Reset form and show success
       setEmail('');
       setPassword('');
-      setOtpCode('');
-      setRegStep(1);
       setShowSuccessPopup(true);
       
       // Switch to login tab automatically
@@ -505,113 +458,65 @@ export default function LandingPage({ onLaunch, onAuthorizedLaunch, activeAuthMe
           </div>
 
           {authMode === 'register' ? (
-            regStep === 1 ? (
-              <form onSubmit={handleRegisterPhase1} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Create Account</h3>
-                  <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Set up local login credentials.</p>
+            <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Create Account</h3>
+                <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>Set up local login credentials.</p>
+              </div>
+
+              {regError && (
+                <div style={{ color: '#f43f5e', fontSize: '0.8rem', textAlign: 'center', background: 'rgba(244, 63, 94, 0.1)', padding: '8px', borderRadius: '8px' }}>
+                  {regError}
                 </div>
+              )}
 
-                {regError && (
-                  <div style={{ color: '#f43f5e', fontSize: '0.8rem', textAlign: 'center', background: 'rgba(244, 63, 94, 0.1)', padding: '8px', borderRadius: '8px' }}>
-                    {regError}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Email Address</label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Mail size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="glass-input"
-                      style={{ paddingLeft: '38px', fontSize: '0.85rem' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Vault Password</label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <Lock size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="glass-input"
-                      style={{ paddingLeft: '38px', paddingRight: '40px', fontSize: '0.85rem' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', display: 'flex' }}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isRegistering}
-                  className="btn-cyber-primary haptic-tap"
-                  style={{ width: '100%', marginTop: '8px', display: 'flex', justifyContent: 'center', background: 'rgba(6, 182, 212, 0.1)', borderColor: 'var(--neon-cyan)', color: 'var(--neon-cyan)' }}
-                >
-                  <span>{isRegistering ? 'Sending OTP...' : 'Send Verification Code'}</span>
-                  {!isRegistering && <Mail size={18} />}
-                </button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOTP} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--neon-cyan)', fontSize: '0.85rem', fontFamily: 'var(--font-mono)', marginBottom: '8px' }}>
-                    <Mail size={16} /> Email Verification
-                  </div>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ffffff', marginBottom: '4px' }}>Enter OTP</h3>
-                  <p style={{ fontSize: '0.8rem', color: '#9ca3af' }}>We sent a 6-digit code to {email}. (Check console for mock code)</p>
-                </div>
-
-                {regError && (
-                  <div style={{ color: '#f43f5e', fontSize: '0.8rem', textAlign: 'center', background: 'rgba(244, 63, 94, 0.1)', padding: '8px', borderRadius: '8px' }}>
-                    {regError}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>6-Digit Code</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Email Address</label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Mail size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
                   <input
-                    type="text"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="000000"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
                     className="glass-input"
-                    style={{ fontSize: '1.2rem', letterSpacing: '0.5em', textAlign: 'center' }}
+                    style={{ paddingLeft: '38px', fontSize: '0.85rem' }}
                   />
                 </div>
+              </div>
 
-                <button
-                  type="submit"
-                  disabled={isRegistering}
-                  className="btn-cyber-primary haptic-tap"
-                  style={{ width: '100%', marginTop: '8px', display: 'flex', justifyContent: 'center' }}
-                >
-                  <span>{isRegistering ? 'Verifying...' : 'Verify & Create Account'}</span>
-                  {!isRegistering && <CheckCircle size={18} />}
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={() => setRegStep(1)}
-                  style={{ background: 'none', border: 'none', color: '#9ca3af', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
-                >
-                  Back to Registration
-                </button>
-              </form>
-            )
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.72rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>Vault Password</label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: '12px', color: '#6b7280' }} />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="glass-input"
+                    style={{ paddingLeft: '38px', paddingRight: '40px', fontSize: '0.85rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', display: 'flex' }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isRegistering}
+                className="btn-cyber-primary haptic-tap"
+                style={{ width: '100%', marginTop: '8px', display: 'flex', justifyContent: 'center', background: 'rgba(6, 182, 212, 0.1)', borderColor: 'var(--neon-cyan)', color: 'var(--neon-cyan)' }}
+              >
+                <span>{isRegistering ? 'Configuring...' : 'Configure Secure Login'}</span>
+                {!isRegistering && <CheckCircle size={18} />}
+              </button>
+            </form>
           ) : (
             <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ textAlign: 'center', marginBottom: '8px' }}>
