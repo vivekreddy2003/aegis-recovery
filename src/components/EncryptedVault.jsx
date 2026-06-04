@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Lock, Unlock, Eye, Trash2, ShieldCheck, Download, AlertCircle, Cloud, Search, CloudLightning } from 'lucide-react';
 import { decryptFile } from '../utils/crypto';
 import { getVaultFiles, deleteFromVault, addLog } from '../utils/db';
-import { playSound } from '../utils/audio';
 
 export default function EncryptedVault({ masterPin }) {
   const [vaultFiles, setVaultFiles] = useState([]);
@@ -62,12 +61,10 @@ export default function EncryptedVault({ masterPin }) {
       });
       
       addLog('info', 'File Decrypted from Vault', `Filename: ${fileObj.originalName}`);
-      playSound('success');
     } catch (err) {
       console.error(err);
       setError('Decryption failed: incorrect PIN configuration or tampered sector bits.');
       addLog('warning', 'Vault Decryption Failure', `Attempted decryption of ${fileObj.originalName} failed.`);
-      playSound('error');
     } finally {
       setIsDecrypting(false);
     }
@@ -102,19 +99,12 @@ export default function EncryptedVault({ masterPin }) {
 
   const handleCloudSync = async (fileObj) => {
     setSyncingId(fileObj.id);
-    const audioNodes = playSound('scan');
     
     // Simulate secure cloud upload delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    if (audioNodes) {
-      audioNodes.osc.stop();
-      audioNodes.lfo.stop();
-    }
-    
     setSyncedIds(prev => new Set(prev).add(fileObj.id));
     setSyncingId(null);
-    playSound('success');
     addLog('info', 'Zero-Knowledge Cloud Sync', `Encrypted blob ${fileObj.originalName} synced to remote Aegis cluster.`);
   };
 

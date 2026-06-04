@@ -12,7 +12,6 @@ import BottomNav from './components/BottomNav';
 import LandingPage from './components/LandingPage';
 import TitleBar from './components/TitleBar';
 import { getConfig } from './utils/db';
-import { playSound } from './utils/audio';
 
 // System key to run local database sandbox encryption transparently in background
 const SYSTEM_KEY = 'AEGIS-SECURE-SYSTEM-KEY';
@@ -263,30 +262,6 @@ function AppContent() {
 
 export default function App() {
   const isElectron = typeof window !== 'undefined' && window.electronAPI;
-
-  useEffect(() => {
-    const handleMouseOver = (e) => {
-      if (e.target.closest('.haptic-tap') || e.target.closest('.interactive') || e.target.closest('button')) {
-        if (window._lastHoverTime && Date.now() - window._lastHoverTime < 50) return;
-        window._lastHoverTime = Date.now();
-        playSound('hover');
-      }
-    };
-    
-    const handleMouseDown = (e) => {
-      if (e.target.closest('.haptic-tap') || e.target.closest('.interactive') || e.target.closest('button')) {
-        playSound('tap');
-      }
-    };
-
-    document.addEventListener('mouseover', handleMouseOver);
-    document.addEventListener('mousedown', handleMouseDown);
-
-    return () => {
-      document.removeEventListener('mouseover', handleMouseOver);
-      document.removeEventListener('mousedown', handleMouseDown);
-    };
-  }, []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>

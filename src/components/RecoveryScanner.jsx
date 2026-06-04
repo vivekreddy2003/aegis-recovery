@@ -3,7 +3,6 @@ import { Search, Upload, ShieldCheck, ShieldAlert, FileText, ImageIcon, File, Co
 import { carveData } from '../utils/carver';
 import { encryptFile } from '../utils/crypto';
 import { saveToVault, addLog } from '../utils/db';
-import { playSound } from '../utils/audio';
 import confetti from 'canvas-confetti';
 
 export default function RecoveryScanner({ masterPin }) {
@@ -112,7 +111,6 @@ export default function RecoveryScanner({ masterPin }) {
     setRecoveredFiles(mockFiles);
     setLogs(prev => [...prev, '[SYSTEM] Quick scan successfully finalized. 2 items identified.']);
     setIsScanning(false);
-    playSound('success');
     confetti({ particleCount: 80, spread: 60 });
     addLog('info', 'Quick Scan Completed', 'Recovered 2 cached system logs.');
   };
@@ -132,7 +130,6 @@ export default function RecoveryScanner({ masterPin }) {
       const reader = new FileReader();
       
       reader.onload = async (e) => {
-        const audioNodes = playSound('scan');
         const arrayBuffer = e.target.result;
         
         // Execute real binary carving from utilities!
@@ -169,15 +166,9 @@ export default function RecoveryScanner({ masterPin }) {
           }
         });
         
-        if (audioNodes) {
-          audioNodes.osc.stop();
-          audioNodes.lfo.stop();
-        }
-        
         setRecoveredFiles(files);
         setLogs(prev => [...prev, `[FORENSIC] Signature scan concluded. Identified ${files.length} valid file headers.`]);
         setIsScanning(false);
-        playSound('success');
         if (files.length > 0) {
           confetti({ particleCount: 100, spread: 80, origin: { y: 0.8 } });
         }
@@ -187,7 +178,6 @@ export default function RecoveryScanner({ masterPin }) {
       reader.readAsArrayBuffer(file);
     } catch (err) {
       console.error(err);
-      playSound('error');
       setLogs(prev => [...prev, `[ERROR] Secure scanning failed: ${err.message}`]);
       setIsScanning(false);
     }
@@ -255,13 +245,11 @@ export default function RecoveryScanner({ masterPin }) {
       }
       
       confetti({ particleCount: 80, spread: 60, colors: shouldEncrypt ? ['#6366f1', '#a855f7'] : ['#10b981', '#06b6d4'] });
-      playSound('success');
       alert(shouldEncrypt ? 'Recovered files secured and encrypted into your Aegis Vault!' : 'Successfully restored selected files!');
       setSelectedFiles({});
       addLog('info', 'Restoration Finalized', `Successfully restored ${selectedIds.length} files.`);
     } catch (err) {
       console.error(err);
-      playSound('error');
       alert('Secure restoration failed: ' + err.message);
     } finally {
       setRestoring(false);
