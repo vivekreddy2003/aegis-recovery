@@ -161,7 +161,7 @@ function AppContent() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
+          <div className="security-badge" style={{
             fontSize: '0.72rem',
             fontWeight: 700,
             background: authMethod === 'password'
@@ -184,7 +184,12 @@ function AppContent() {
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
           }}>
-            {authMethod === 'password' ? 'Password Secured' : authMethod === 'pin' ? 'PIN Secured' : 'Frictionless'}
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '0.8rem' }}>{authMethod === 'frictionless' ? '🔓' : '🔒'}</span>
+              <span className="security-badge-text">
+                {authMethod === 'password' ? 'Password Secured' : authMethod === 'pin' ? 'PIN Secured' : 'Frictionless'}
+              </span>
+            </span>
           </div>
 
           <button 

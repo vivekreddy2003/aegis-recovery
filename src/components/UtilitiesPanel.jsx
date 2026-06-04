@@ -18,63 +18,53 @@ export default function UtilitiesPanel() {
       </div>
 
       {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '10px', background: 'rgba(8, 7, 16, 0.4)', padding: '6px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="scrollable-tabs-container">
         <button
           onClick={() => setActiveTab('password')}
-          className="haptic-tap"
+          className="scrollable-tab-btn haptic-tap"
           style={{
-            flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
             background: activeTab === 'password' ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
             color: activeTab === 'password' ? 'var(--neon-cyan)' : '#9ca3af',
-            fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
           }}
         >
-          <Key size={16} /> Strong Password Generator
+          <Key size={16} /> Strong Password
         </button>
         <button
           onClick={() => setActiveTab('exif')}
-          className="haptic-tap"
+          className="scrollable-tab-btn haptic-tap"
           style={{
-            flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
             background: activeTab === 'exif' ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
             color: activeTab === 'exif' ? 'var(--neon-indigo)' : '#9ca3af',
-            fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
           }}
         >
-          <CameraOff size={16} /> Photo Privacy Cleaner
+          <CameraOff size={16} /> Photo Privacy
         </button>
         <button
           onClick={() => setActiveTab('stego')}
-          className="haptic-tap"
+          className="scrollable-tab-btn haptic-tap"
           style={{
-            flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
             background: activeTab === 'stego' ? 'rgba(16, 185, 129, 0.15)' : 'transparent',
             color: activeTab === 'stego' ? 'var(--neon-emerald)' : '#9ca3af',
-            fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
           }}
         >
-          <MessageSquare size={16} /> Secret Message Hider
+          <MessageSquare size={16} /> Secret Message
         </button>
         <button
           onClick={() => setActiveTab('audit')}
-          className="haptic-tap"
+          className="scrollable-tab-btn haptic-tap"
           style={{
-            flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
             background: activeTab === 'audit' ? 'rgba(244, 63, 94, 0.15)' : 'transparent',
             color: activeTab === 'audit' ? 'var(--neon-rose)' : '#9ca3af',
-            fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
           }}
         >
-          <History size={16} /> App Security History
+          <History size={16} /> Security History
         </button>
         <button
           onClick={() => setActiveTab('email')}
-          className="haptic-tap"
+          className="scrollable-tab-btn haptic-tap"
           style={{
-            flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
             background: activeTab === 'email' ? 'rgba(234, 179, 8, 0.15)' : 'transparent',
             color: activeTab === 'email' ? '#eab308' : '#9ca3af',
-            fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
           }}
         >
           <Mail size={16} /> Ghost Email

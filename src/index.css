@@ -913,3 +913,96 @@
     border-color: rgba(255, 255, 255, 0.12);
   }
 
+  /* ==========================================================================
+     Mobile Responsive Adjustments
+     ========================================================================== */
+
+  @media (max-width: 600px) {
+    .app-header {
+      padding: 10px 14px;
+      height: 60px;
+    }
+    
+    .app-logo {
+      font-size: 1.1rem;
+      gap: 6px;
+    }
+    
+    .app-logo span {
+      display: none; /* Hide 'RECOVERY' on mobile */
+    }
+
+    .security-badge {
+      padding: 4px 6px !important;
+    }
+
+    .security-badge-text {
+      display: none; /* Hide label text to keep the badge compact */
+    }
+  }
+
+  @media (max-width: 480px) {
+    .app-content {
+      padding: 12px 12px 80px 12px; /* Tighter padding for mobile screens */
+    }
+
+    .bottom-nav {
+      height: 64px;
+    }
+
+    .bottom-nav-item {
+      flex: 1;
+      width: auto;
+      font-size: 0.6rem;
+    }
+
+    .bottom-nav-item span {
+      display: none; /* Hide bottom nav labels on mobile to avoid overlapping */
+    }
+
+    .bottom-nav-icon-wrapper {
+      padding: 8px;
+    }
+
+    .bottom-nav-item.active::after {
+      top: auto;
+      bottom: 0;
+      width: 18px;
+      height: 2px;
+      border-radius: 4px 4px 0 0;
+    }
+  }
+
+  /* Scrollable tabs container for sub-navigations */
+  .scrollable-tabs-container {
+    display: flex;
+    gap: 10px;
+    background: rgba(8, 7, 16, 0.4);
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    overflow-x: auto;
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+  }
+
+  .scrollable-tabs-container::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for Chrome/Safari */
+  }
+
+  .scrollable-tab-btn {
+    flex-shrink: 0;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+  }
+
