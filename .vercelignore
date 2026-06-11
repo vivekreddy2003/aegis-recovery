@@ -1,0 +1,23 @@
+# Exclude build output for Electron installers
+release
+release/
+dist
+dist/
+
+# Exclude dependencies
+node_modules
+node_modules/
+
+# Exclude git and configurations
+.git
+.git/
+.vercel
+.vercel/
+.gitignore
+.vercelignore
+README.md
+LICENSE
+
+# Exclude local source files and scripts that are built on server
+electron
+electron/
