@@ -493,10 +493,10 @@
 
   .landing-container {
     width: 100%;
-    height: 100dvh;
+    min-height: 100dvh;
     background: radial-gradient(ellipse at top, #0f0b24 0%, #050409 60%, #020104 100%);
     position: relative;
-    overflow-y: auto;
+    overflow-y: visible;
     overflow-x: hidden;
     padding: 4vh 24px 4vh 24px;
     z-index: 10;
@@ -603,7 +603,13 @@
 
   @media (max-width: 600px) {
     .landing-title {
-      font-size: 2.4rem;
+      font-size: 2rem;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .landing-title {
+      font-size: 1.7rem;
     }
   }
 

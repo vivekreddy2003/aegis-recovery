@@ -17,13 +17,12 @@ import { getConfig } from './utils/db';
 // System key to run local database sandbox encryption transparently in background
 const SYSTEM_KEY = 'AEGIS-SECURE-SYSTEM-KEY';
 
-function AppContent() {
+function AppContent({ isViewingLanding, setIsViewingLanding }) {
   const [activeTab, setActiveTab] = useState('scanner'); // 'scanner' | 'vault' | 'shredder' | 'portal' | 'playground' | 'settings'
   const [isAuthorized, setIsAuthorized] = useState(null);
   const [masterPin, setMasterPin] = useState(SYSTEM_KEY);
   const [pinLockEnabled, setPinLockEnabled] = useState(false);
   const [authMethod, setAuthMethod] = useState('frictionless');
-  const [isViewingLanding, setIsViewingLanding] = useState(true);
 
   // Read config on mount to see which Startup Auth Mode is active
   useEffect(() => {
@@ -280,13 +279,28 @@ function AppContent() {
 
 export default function App() {
   const isElectron = typeof window !== 'undefined' && window.electronAPI;
+  const [isViewingLanding, setIsViewingLanding] = useState(true);
+
+  useEffect(() => {
+    if (isViewingLanding) {
+      document.documentElement.style.overflow = 'auto';
+      document.body.style.overflow = 'auto';
+      document.documentElement.style.height = 'auto';
+      document.body.style.height = 'auto';
+    } else {
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.height = '100dvh';
+      document.body.style.height = '100dvh';
+    }
+  }, [isViewingLanding]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: isViewingLanding ? 'auto' : '100vh', overflow: isViewingLanding ? 'visible' : 'hidden' }}>
       {/* Title bar requires the app to know if it's in electron, but we can safely render it everywhere */}
       {isElectron && <TitleBar />}
-      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <AppContent />
+      <div style={{ flex: 1, overflow: isViewingLanding ? 'visible' : 'hidden', position: 'relative' }}>
+        <AppContent isViewingLanding={isViewingLanding} setIsViewingLanding={setIsViewingLanding} />
       </div>
     </div>
   );
